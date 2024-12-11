@@ -1,0 +1,2060 @@
+
+--******************************************************************* 1 *******************************************************************************************
+drop table "backup".icc_world_cup;
+
+create table "backup".icc_world_cup
+(
+Team_1 Varchar(20),
+Team_2 Varchar(20),
+Winner Varchar(20)
+);
+
+INSERT INTO "backup".icc_world_cup values('India','SL','India');
+INSERT INTO "backup".icc_world_cup values('SL','Aus','Aus');
+INSERT INTO "backup".icc_world_cup values('SA','Eng','Eng');
+INSERT INTO "backup".icc_world_cup values('Eng','NZ','NZ');
+INSERT INTO "backup".icc_world_cup values('Aus','India','India');
+
+
+select * from "backup".icc_world_cup;
+
+select 
+	team_name,count(*) as tota_match_played,sum(win_flag) as total_match_won,tota_match_played - sum(win_flag) as total_losses
+from 
+(
+select team_1 as team_name, case when team_1 = winner then 1 else 0 end win_flag from "backup".icc_world_cup
+union all
+select team_2 as team_name, case when team_2 = winner then 1 else 0 end win_flag from "backup".icc_world_cup) a
+group by team_name;
+
+
+--******************************************************************* 2 *******************************************************************************************
+--drop table "backup".customer_orders;
+
+--truncate table backup.customer_orders;
+create table backup.customer_orders (
+order_id integer,
+customer_id integer,
+order_date date,
+order_amount integer
+);
+
+select * from backup.customer_orders;
+
+
+insert into backup.customer_orders values(1,100,cast('2022-01-01' as date),2000),(2,200,cast('2022-01-01' as date),2500),(3,300,cast('2022-01-01' as date),2100)
+,(4,100,cast('2022-01-02' as date),2000),(5,400,cast('2022-01-02' as date),2200),(6,500,cast('2022-01-02' as date),2700)
+,(7,100,cast('2022-01-03' as date),3000),(8,400,cast('2022-01-03' as date),1000),(9,600,cast('2022-01-03' as date),3000)
+;
+
+
+with cte_1 as(
+select customer_id,min(order_date) as first_visited_date from backup.customer_orders
+group by customer_id)
+select co.*,c1.first_visited_date
+,case when co.order_date = c1.first_visited_date then 1 else 0 end as new_customers
+,case when co.order_date != c1.first_visited_date then 1 else 0 end as repeated_customers
+from "backup".customer_orders co
+inner join cte_1 c1
+on co.customer_id = c1.customer_id
+--and co.order_date =c1.first_visited_date;
+--------------------------
+
+with cte_1 as(
+select customer_id,min(order_date) as first_visited_date from backup.customer_orders
+group by customer_id)
+select co.order_date--co.*,c1.first_visited_date
+,sum(case when co.order_date = c1.first_visited_date then 1 else 0 end) as new_customers
+,sum(case when co.order_date != c1.first_visited_date then 1 else 0 end) as repeated_customers
+from "backup".customer_orders co
+inner join cte_1 c1
+on co.customer_id = c1.customer_id
+group by co.order_date;
+
+
+--******************************************************************* 3 *******************************************************************************************
+
+--drop table "backup".events;
+
+CREATE TABLE "backup".events (
+ID int,
+event varchar(255),
+YEAR INt,
+GOLD varchar(255),
+SILVER varchar(255),
+BRONZE varchar(255)
+);
+
+delete from events;
+
+INSERT INTO "backup".events VALUES (1,'100m',2016, 'Amthhew Mcgarray','donald','barbara');
+INSERT INTO "backup".events VALUES (2,'200m',2016, 'Nichole','Alvaro Eaton','janet Smith');
+INSERT INTO "backup".events VALUES (3,'500m',2016, 'Charles','Nichole','Susana');
+INSERT INTO "backup".events VALUES (4,'100m',2016, 'Ronald','maria','paula');
+INSERT INTO "backup".events VALUES (5,'200m',2016, 'Alfred','carol','Steven');
+INSERT INTO "backup".events VALUES (6,'500m',2016, 'Nichole','Alfred','Brandon');
+INSERT INTO "backup".events VALUES (7,'100m',2016, 'Charles','Dennis','Susana');
+INSERT INTO "backup".events VALUES (8,'200m',2016, 'Thomas','Dawn','catherine');
+INSERT INTO "backup".events VALUES (9,'500m',2016, 'Thomas','Dennis','paula');
+INSERT INTO "backup".events VALUES (10,'100m',2016, 'Charles','Dennis','Susana');
+INSERT INTO "backup".events VALUES (11,'200m',2016, 'jessica','Donald','Stefeney');
+INSERT INTO "backup".events VALUES (12,'500m',2016,'Thomas','Steven','Catherine');
+
+
+select gold as player_name, count(*) as no_of_metals_won
+from 
+	"backup".events
+where 
+	gold not in(select silver from "backup".events union all select bronze from backup.events)
+group by 
+	gold;
+
+--order by cte_1.gold;
+
+
+--- second approach
+
+with cte as(
+select gold as player_name,'gold' as metal_type from "backup".events union all
+select silver as player_name,'silver' as metal_type from "backup".events union all
+select bronze as player_name,'bronze' as metal_type from "backup".events)
+select player_name,count(*) from cte
+group by player_name
+having count(distinct metal_type) = 1 and max(metal_type) = 'gold';
+
+----
+
+
+--******************************************************************* 4 *******************************************************************************************
+--drop table "backup".tickets;
+
+CREATE TABLE "backup".tickets (
+    airline_number VARCHAR(10),
+    origin VARCHAR(3),
+    destination VARCHAR(3),
+    oneway_round CHAR(1),
+    ticket_count INT
+);
+
+select * from "backup".tickets;
+
+select origin,destination,sum(price) as busy_route 
+from 
+(select *,
+	case when oneway_round = 'O' then ticket_count else 2*ticket_count end as price
+	from "backup".tickets)x
+group by origin,destination
+order by busy_route desc;	
+
+
+select origin,destination,sum(ticket_count) as tc 
+from (select 1,origin,destination,ticket_count from "backup".tickets
+union all
+select 2,destination,origin, ticket_count from "backup".tickets
+where oneway_round = 'R') a
+group by origin,destination
+order by tc desc limit 1;
+
+select 1,origin,destination,ticket_count from "backup".tickets
+union all
+select 2,destination,origin, ticket_count from "backup".tickets
+where oneway_round = 'R';
+
+
+--******************************************************************* 5 *******************************************************************************************
+
+--calculate the the overall sales rankings for all employees combined over the observed period using the sales_data table. 
+
+--drop table "backup".sales_data;
+
+CREATE TABLE "backup".sales_data (
+    employee_id INTEGER,
+    sales_date DATE,
+    total_sales INTEGER
+);
+INSERT INTO "backup".sales_data (employee_id, sales_date, total_sales) VALUES
+(101, '2024-01-01', 500),
+(102, '2024-01-01', 700),
+(103, '2024-01-01', 600),
+(101, '2024-01-02', 800),
+(102, '2024-01-02', 750),
+(103, '2024-01-02', 900),
+(101, '2024-01-03', 600),
+(102, '2024-01-03', 850),
+(103, '2024-01-03', 700);
+
+select * from "backup".sales_data;
+
+
+select
+	employee_id,
+	sum(total_sales) as total_sales_sum,
+	rank() over(order by sum(total_sales) desc) as sales_rank 
+from 
+	"backup".sales_data
+group by 
+	employee_id;
+
+
+--******************************************************************* 6 *******************************************************************************************
+
+drop table "backup".hospital;
+
+create table "backup".hospital ( emp_id int
+, action varchar(10)
+, time datetime);
+
+insert into "backup".hospital values ('1', 'in', '2019-12-22 09:00:00');
+insert into "backup".hospital values ('1', 'out', '2019-12-22 09:15:00');
+insert into "backup".hospital values ('2', 'in', '2019-12-22 09:00:00');
+insert into "backup".hospital values ('2', 'out', '2019-12-22 09:15:00');
+insert into "backup".hospital values ('2', 'in', '2019-12-22 09:30:00');
+insert into "backup".hospital values ('3', 'out', '2019-12-22 09:00:00');
+insert into "backup".hospital values ('3', 'in', '2019-12-22 09:15:00');
+insert into "backup".hospital values ('3', 'out', '2019-12-22 09:30:00');
+insert into "backup".hospital values ('3', 'in', '2019-12-22 09:45:00');
+insert into "backup".hospital values ('4', 'in', '2019-12-22 09:45:00');
+insert into "backup".hospital values ('5', 'out', '2019-12-22 09:40:00');
+
+select * from "backup".hospital;
+
+with cte as (
+select emp_id,
+	max(case when action = 'in' then time end )as intime
+	,max(case when action = 'out' then time end) as outtime
+from "backup".hospital
+group by emp_id)
+select emp_id from cte
+where intime > outtime or outtime is null;
+
+
+-- second approach
+with cte as (
+select *,
+rank() over(partition by emp_id order by time desc) as rn
+from "backup".hospital)
+select emp_id,action from cte where action = 'in' and rn = 1;
+
+with cte as (
+select *,
+	rank() over(partition by emp_id order by time desc) as rn
+from "backup".hospital)
+select * from cte where action = 'in' and rn = 1;
+
+
+
+
+
+
+--******************************************************************* 7 *******************************************************************************************
+-- Convert rows to columns and columns to rows without using pivot function
+
+drop table "backup".emp_compensation;
+
+create table backup.emp_compensation (
+emp_id int,
+salary_component_type varchar(20),
+val int
+);
+
+insert into backup.emp_compensation
+values (1,'salary',10000),(1,'bonus',5000),(1,'hike_percent',10)
+, (2,'salary',15000),(2,'bonus',7000),(2,'hike_percent',8)
+, (3,'salary',12000),(3,'bonus',6000),(3,'hike_percent',7);
+
+select * from backup.emp_compensation;
+
+with cte as (
+select 
+	emp_id,
+	case when salary_component_type = 'salary' then val  end as salary
+	,case when salary_component_type = 'bonus' then val end as bonus
+	,case when salary_component_type = 'hike_percent' then val end as hike_percent
+from "backup".emp_compensation)
+select emp_id,sum(salary),sum(bonus),sum(hike_percent) from cte
+group by emp_id;
+
+-- second approach
+
+select 
+	emp_id,
+	sum(case when salary_component_type = 'salary' then val  end) as salary
+	,sum(case when salary_component_type = 'bonus' then val end) as bonus
+	,sum(case when salary_component_type = 'hike_percent' then val end) as hike_percent
+from "backup".emp_compensation
+group by emp_id;
+
+
+
+--******************************************************************* 8 *******************************************************************************************
+
+--- self join examples
+drop table "backup".emp_manager;
+
+create table "backup".emp_manager(
+emp_id int,
+emp_name varchar(50),
+salary int,
+manager_id int
+);
+
+
+insert into "backup".emp_manager values(	1	,'Ankit',	10000	,4	);
+insert into "backup".emp_manager values(	2	,'Mohit',	15000	,5	);
+insert into "backup".emp_manager values(	3	,'Vikas',	10000	,4	);
+insert into "backup".emp_manager values(	4	,'Rohit',	5000	,2	);
+insert into "backup".emp_manager values(	5	,'Mudit',	12000	,6	);
+insert into "backup".emp_manager values(	6	,'Agam',	12000	,2	);
+insert into "backup".emp_manager values(	7	,'Sanjay',	9000	,2	);
+insert into "backup".emp_manager values(	8	,'Ashish',	5000	,2	);
+
+
+select * from "backup".emp_manager;
+
+
+select e.emp_id,e.emp_name as employee, m.emp_name as Manager ,e.salary as emp_salary ,m.salary as manager_salary
+from "backup".emp_manager e
+inner join "backup".emp_manager m
+on e.manager_id = m.emp_id
+where emp_salary > manager_salary;
+
+select max(salary) from "backup".emp_manager
+where salary not in(
+select max(salary) from "backup".emp_manager);
+
+select emp_id,emp_name,salary from 
+(
+select emp_id,emp_name,salary,
+dense_rank() over(order by salary desc) as salary_range
+from "backup".emp_manager
+)where salary_range = 2 
+order by emp_id
+limit 1
+;
+
+--******************************************************************* 9 *******************************************************************************************
+--- how many days took to resolve the tickets(jeera), also not include weekends and holidays.
+drop table "backup".jeera_tickets;
+
+create table "backup".jeera_tickets
+(
+ticket_id varchar(10),
+create_date date,
+resolved_date date
+);
+
+--delete from "backup".jeera_tickets;
+insert into "backup".jeera_tickets values
+(1,'2022-08-01','2022-08-03')
+,(2,'2022-08-01','2022-08-12')
+,(3,'2022-08-01','2022-08-16');
+create table "backup".holidays
+(
+holiday_date date
+,reason varchar(100)
+);
+--delete from holidays;
+insert into backup.holidays values
+('2022-08-11','Rakhi'),('2022-08-15','Independence day');
+
+
+select * from "backup".jeera_tickets;
+
+select * from "backup".holidays;
+
+select *,
+datediff(day,create_date,resolved_date) - 2*(datediff(week,create_date,resolved_date)) - no_of_holidays as business_days
+from
+(
+select jt.ticket_id,jt.create_date,jt.resolved_date,count(h.holiday_date) as no_of_holidays
+--,datediff(day,create_date,resolved_date) as actual_days
+--,datepart(week,create_date)
+--,datepart(week,resolved_date)
+--,datediff(week,create_date,resolved_date) as week_diff
+--,datediff(day,create_date,resolved_date) - 2*(datediff(week,create_date,resolved_date)) as business_days
+from "backup".jeera_tickets jt
+left join "backup".holidays h
+on h.holiday_date between create_date and resolved_date
+and date_part(dow,h.holiday_date) not in (6,7) 
+group by jt.ticket_id,jt.create_date,jt.resolved_date) a;
+
+
+--select *,date_part(dow,holiday_date) from "backup".holidays;
+
+with cte as (
+select jt.ticket_id,jt.create_date,jt.resolved_date,count(h.holiday_date) as no_of_holidays
+--,datediff(day,create_date,resolved_date) as actual_days
+--,datediff(week,create_date,resolved_date) as week_diff
+,datediff(day,create_date,resolved_date) - 2*datediff(week,create_date,resolved_date) as business_days
+from "backup".jeera_tickets jt
+left join "backup".holidays h
+on h.holiday_date between create_date and resolved_date
+group by jt.ticket_id,jt.create_date,jt.resolved_date)
+select ticket_id, create_date,resolved_date,(business_days - no_of_holidays) as business_day from cte;
+
+--******************************************************************* 10 *******************************************************************************************
+
+-- Create table without creating a actual table in database
+
+
+with stage as (
+select 1 as id,'siddharth' as name, 909 as phone union all
+select 2 as id,'listrin' as name, 908 as phone union all
+select 3 as id,'anuj' as name, 907 as phone
+),
+prod as (
+select 2 as id,'listrin' as name, 908 as phone union all
+select 3 as id,'anuj' as name, 907 as phone union all
+select 4 as id,'mithil'as name, 910 as phone
+)
+select * from stage
+minus
+select * from prod;
+
+
+
+--******************************************************************* 11 *******************************************************************************************
+
+create table backup.backup.emp_sid(
+emp_id int,
+emp_name varchar(20),
+department_id int,
+salary int,
+manager_id int,
+emp_age int);
+
+insert into backup.backup.emp_sid values
+(1, 'Ankit', 100,10000, 4, 39)
+,(2, 'Mohit', 100, 15000, 5, 48)
+,(3, 'Vikas', 100, 10000,4,37)
+,(4, 'Rohit', 100, 5000, 2, 16)
+,(5, 'Mudit', 200, 12000, 6,55)
+,(6, 'Agam', 200, 12000,2, 14)
+,(7, 'Sanjay', 200, 9000, 2,13)
+,(8, 'Ashish', 200,5000,2,12)
+,(9, 'Mukesh',300,6000,6,51)
+,(10, 'Rakesh',300,7000,6,50);
+
+
+with cte as (
+select *,
+	dense_rank () over(partition by department_id order by salary desc) as rn
+from 
+	"backup".backup.emp_sid
+)
+select * from cte where rn = 2 order by department_id;
+--group by department_id;
+
+
+
+
+select e.emp_name employee_name ,e.salary emp_salary, m.emp_name manager_name, m.salary manager_salary from "backup".backup.emp_sid e
+inner join "backup".backup.emp_sid m
+on e.manager_id = m.emp_id
+where e.salary > m.salary;
+
+--******************************************************************* 12 *******************************************************************************************
+
+--Create table with from another table using only table structure
+
+create table "backup".test_table_sid as
+select * from "backup".backup.emp_sid where 1 =2;
+
+
+---- Create another result table using into cluse
+
+select e.emp_name employee_name ,e.salary emp_salary, m.emp_name manager_name, m.salary manager_salary into "backup".higher_employee from "backup".backup.emp_sid e
+inner join "backup".backup.emp_sid m
+on e.manager_id = m.emp_id
+where e.salary > m.salary;
+
+
+
+--******************************************************************* 13 *******************************************************************************************
+-- First method
+
+with cte as(
+select 1 as id union all
+select 2 as id union all
+select 2 as id union all
+select 2 as id union all
+select 3 as id union all
+select 3 as id union all
+select 3 as id union all
+select 4 as id union all
+select 4 as id union all
+select 2 as id union all
+select 5 as id union all
+select 6 as id union all
+select 3 as id
+)
+, fq_group as(
+select id,count(*) as freq from cte 
+group by id
+order by id)
+select * from fq_group where freq = (select max(freq) from fq_group);
+
+-- second method using Rank window function
+
+with cte as(
+select 1 as id union all
+select 2 as id union all
+select 2 as id union all
+select 2 as id union all
+select 3 as id union all
+select 3 as id union all
+select 3 as id union all
+select 4 as id union all
+select 4 as id union all
+select 2 as id union all
+select 5 as id union all
+select 6 as id union all
+select 3 as id
+)
+, fq_group as(
+select id,count(*) as freq from cte 
+group by id order by id)
+select id,freq,rank() over(order by freq desc) as feq_rank
+from fq_group; 
+
+
+
+
+--******************************************************************* 14 *******************************************************************************************
+
+
+create table backup.list (id varchar(5));
+
+insert into backup.list values ('a');
+insert into backup.list values ('a');
+insert into backup.list values ('b');
+insert into backup.list values ('c');
+insert into backup.list values ('c');
+insert into backup.list values ('c');
+insert into backup.list values ('d');
+insert into backup.list values ('d');
+insert into backup.list values ('e');
+
+
+select * from backup.list;
+
+
+with dups as (
+select id from "backup".list
+group by id
+having count(id) > 1)
+,cte_rank as (
+select *,rank() over(order by id) as rn from dups)
+select l.*,concat('dup',rn) from "backup".list l
+left join cte_rank cr
+on l.id = cr.id
+order by l.id;
+
+
+--******************************************************************* 15 *******************************************************************************************
+-- Find the change in employee status
+
+create table backup.emp_2020
+(
+emp_id int,
+designation varchar(20)
+);
+
+create table backup.emp_2021
+(
+emp_id int,
+designation varchar(20)
+)
+
+insert into backup.emp_2020 values (1,'Trainee'), (2,'Developer'),(3,'Senior Developer'),(4,'Manager');
+insert into backup.emp_2021 values (1,'Developer'), (2,'Developer'),(3,'Manager'),(5,'Trainee');
+
+
+select * from "backup".emp_2020;
+select * from "backup".emp_2021;
+
+
+select 
+	e20.*,
+	e21.*,
+	case when e20.designation != e21.designation then 'Promoted'
+	when e21.designation is null then 'Resigned'
+	when e20.designation = e21.designation then 'Not Promoted'
+	else 'New' end as output
+from 
+	"backup".emp_2020 e20
+full join 
+	"backup".emp_2021 e21
+on e20.emp_id = e21.emp_id
+order by e20.emp_id
+
+--******************************************************************* 16 *******************************************************************************************
+
+-- in join NULL is not equal to NULL of other table
+
+with cte_1 as(
+select 1 as id union all
+select 1 as id union all
+select 2 as id union all
+select 3 as id union all
+select null as id
+), cte_2 as(
+select 1 as id union all
+select 1 as id union all
+select 2 as id union all
+select null as id union all
+select 3 as id
+)
+select * from cte_1 c1
+full join cte_2 c2
+on c1.id = c2.id;
+
+
+
+
+
+--******************************************************************* 17 *******************************************************************************************
+-- Problem in running sum in SQL  --https://www.youtube.com/watch?v=_GkPa7Iy2Fk&list=PLBTZqjSKn0IcR6DhoLUibOG8frnWbZdSH&index=14 
+
+create table "backup".products ( product_id varchar(20), cost int)
+
+insert into "backup".products values ('P1', 200), ('P2', 300), ('P3', 300), ('P4', 500), ('P5', 800)
+
+
+select *,sum(cost) over(order by cost asc rows between unbounded preceding and current row) as running_cost
+from "backup".products;
+
+select *, sum(cost) over(order by cost asc rows between unbounded preceding and current row) as running_cost from "backup".products;
+
+
+------ second example --------
+
+CREATE TABLE "backup".sales_data (
+    employee_id INTEGER,
+    sales_date DATE,
+    total_sales INTEGER
+);
+
+INSERT INTO "backup".sales_data (employee_id, sales_date, total_sales) VALUES
+(101, '2024-01-01', 500),
+(102, '2024-01-01', 700),
+(103, '2024-01-01', 600),
+(101, '2024-01-02', 800),
+(102, '2024-01-02', 750),
+(103, '2024-01-02', 900),
+(101, '2024-01-03', 600),
+(102, '2024-01-03', 850),
+(103, '2024-01-03', 700);
+
+select * from "backup".sales_data ;
+
+--- employee wise total_sales------
+select employee_id,sum(total_sales) from "backup".sales_data
+group by employee_id;
+
+----  date wise total sales ------------------
+select sales_date,sum(total_sales) from "backup".sales_data
+group by sales_date;
+
+-------- cumulative sales --------------
+
+select
+	employee_id,
+	sales_date,
+	total_sales,
+	sum(total_sales) over (partition by employee_id order by sales_date rows between unbounded preceding and current row) as running_sales
+from
+	"backup".sales_data
+order by
+	employee_id,
+	sales_date;
+
+
+
+--******************************************************************* 18 *******************************************************************************************
+
+-- Merge statement 
+
+CREATE TABLE "backup".SourceProducts(
+    ProductID  INT,
+    ProductName  VARCHAR(50),
+    Price   DECIMAL(9,2)
+);
+CREATE TABLE "backup".TargetProducts(
+    ProductID  INT,
+    ProductName  VARCHAR(50),
+    Price   DECIMAL(9,2)
+);
+
+
+delete from SourceProducts;
+INSERT INTO "backup".SourceProducts VALUES(1,'Table',90),(3,'Chair',70)
+
+delete from TargetProducts;
+INSERT INTO "backup".TargetProducts VALUES(1,'Table',100),(2,'Desk',180)
+
+select * from "backup".SourceProducts;
+
+select * from "backup".targetproducts;
+
+
+merge into "backup".targetproduct
+using "backup".sourceproducts
+on t.productid = s.productid
+when matched then update
+set t.price = s.price;
+
+
+
+--******************************************************************* 19 *******************************************************************************************
+-- database case sensitivitry and insensitivity
+
+-- i want to fetch only lower case email id :- 102,105, and 106 will be removed
+
+CREATE TABLE "backup".employees  (employee_id int,employee_name varchar(15), email_id varchar(15) );
+--delete from employees;
+INSERT INTO "backup".employees (employee_id,employee_name, email_id) VALUES ('101','Liam Alton', 'li.al@abc.com');
+INSERT INTO "backup".employees (employee_id,employee_name, email_id) VALUES ('102','Josh Day', 'jo.da@abc.com');
+INSERT INTO "backup".employees (employee_id,employee_name, email_id) VALUES ('103','Sean Mann', 'se.ma@abc.com'); 
+INSERT INTO "backup".employees (employee_id,employee_name, email_id) VALUES ('104','Evan Blake', 'ev.bl@abc.com');
+INSERT INTO "backup".employees (employee_id,employee_name, email_id) VALUES ('105','Toby Scott', 'jo.da@abc.com');
+INSERT INTO "backup".employees (employee_id,employee_name, email_id) VALUES ('106','Anjali Chouhan', 'JO.DA@ABC.COM');
+INSERT INTO "backup".employees (employee_id,employee_name, email_id) VALUES ('107','Ankit Bansal', 'AN.BA@ABC.COM');
+
+
+with cte as (
+select *,ascii(email_id) as ascii_email,rank() over(partition by lower(email_id) order by ascii(email_id) desc) as rn
+from "backup".employees)
+select * from cte where rn = 1 order by employee_id;
+
+
+
+--******************************************************************* 20 *******************************************************************************************
+--- Rollup, cubes and grouping set concepts
+
+--1)  Rollup will only go left to right combination
+
+--drop table backup.orders_sid;
+
+Create table backup.orders_sid
+(
+    Id int,
+    Continent nvarchar(50),
+    Country nvarchar(50),
+    City nvarchar(50),
+    amount int,
+    primary key(id)
+    
+);
+Insert into backup.orders_sid values(1,'Asia','India','Bangalore',1000);
+Insert into backup.orders_sid values(2,'Asia','India','Chennai',2000);
+Insert into backup.orders_sid values(3,'Asia','Japan','Tokyo',4000);
+Insert into backup.orders_sid values(4,'Asia','Japan','Hiroshima',5000);
+Insert into backup.orders_sid values(5,'Europe','United Kingdom','London',1000);
+Insert into backup.orders_sid values(6,'Europe','United Kingdom','Manchester',2000);
+Insert into backup.orders_sid values(7,'Europe','France','Paris',4000);
+Insert into backup.orders_sid values(8,'Europe','France','Cannes',5000);
+
+
+
+select continent,country,city,sum(amount) 
+from backup.orders_sid
+group by continent,country,city
+union all 
+select continent,null country,null city,sum(amount) 
+from backup.orders_sid
+group by continent
+union all
+select continent,country,null city,sum(amount) 
+from backup.orders_sid
+group by continent,country
+union all
+select null continent,null country,null city,sum(amount)
+from backup.orders_sid;
+
+
+select continent,country,city,sum(amount) 
+from backup.orders_sid
+group by rollup(continent,country,city);
+
+
+select continent,country,city,sum(amount) 
+from backup.orders_sid
+group by cube(continent,country,city);
+
+
+select continent,country,city,sum(amount) 
+from backup.orders_sid
+group by grouping sets((continent,country),(city),(country,city));
+
+
+--******************************************************************* 21 *******************************************************************************************
+-- subquery and correlated subquery
+
+
+
+create table backup.emp_sid(
+emp_id int,
+emp_name varchar(20),
+department_id int,
+salary int,
+manager_id int,
+emp_age int);
+
+insert into backup.emp_sid
+values
+(1, 'Ankit', 100,10000, 4, 39);
+insert into backup.emp_sid
+values (2, 'Mohit', 100, 15000, 5, 48);
+insert into backup.emp_sid
+values (3, 'Vikas', 100, 10000,4,37);
+insert into backup.emp_sid
+values (4, 'Rohit', 100, 5000, 2, 16);
+insert into backup.emp_sid
+values (5, 'Mudit', 200, 12000, 6,55);
+insert into backup.emp_sid
+values (6, 'Agam', 200, 12000,2, 14);
+insert into backup.emp_sid
+values (7, 'Sanjay', 200, 9000, 2,13);
+insert into backup.emp_sid
+values (8, 'Ashish', 200,5000,2,12);
+insert into backup.emp_sid
+values (9, 'Mukesh',300,6000,6,51);
+insert into backup.emp_sid
+values (10, 'Rakesh',300,7000,6,50);
+
+
+select * from "backup".emp_sid;
+
+--- with clause approach
+with cte as (
+select department_id,avg(salary) as avg_salary from "backup".emp_sid
+group by department_id)
+,cte_1 as (
+select * from cte c
+inner join "backup".emp_sid e
+on c.department_id = e.department_id)
+select * from cte_1
+where salary > avg_salary;
+
+
+-- subquery method -------  independent subquery
+
+--1) we can run it independently 
+--2) it runs only once
+
+select e.*,a.avg_salary from "backup".emp_sid e
+inner join(
+select department_id,avg(salary) as avg_salary from "backup".emp_sid
+group by department_id) a
+on e.department_id = a.department_id
+where e.salary > a.avg_salary;
+
+
+
+
+
+--******************************************************************* 22 *******************************************************************************************
+
+-- ALL about aggregation function  : sum(), avg(), min(), max()
+
+
+
+
+CREATE TABLE "backup".int_orders (
+    order_number INT NOT NULL,
+    order_date DATE NOT NULL,
+    cust_id INT NOT NULL,
+    salesperson_id INT NOT NULL,
+    amount FLOAT8 NOT NULL
+);
+
+
+
+INSERT INTO "backup".int_orders (order_number, order_date, cust_id, salesperson_id, amount) VALUES 
+(30, '1995-07-14', 9, 1, 460),
+(10, '1996-08-02', 4, 2, 540),
+(40, '1998-01-29', 7, 2, 2400),
+(50, '1998-02-03', 6, 7, 600),
+(60, '1998-03-02', 6, 7, 720),
+(70, '1998-05-06', 9, 7, 150),
+(20, '1999-01-30', 4, 8, 1800);
+
+
+
+
+select salesperson_id,order_number,order_date,amount from "backup".int_orders;
+
+select sum(amount) from "backup".int_orders;
+
+
+select salesperson_id,sum(amount) from "backup".int_orders
+group by salesperson_id;
+
+
+
+select 
+	salesperson_id,
+	order_number,
+	order_date,
+	amount,
+	sum(amount) over(partition by salesperson_id) as sales 
+from 
+	"backup".int_orders
+--group by 
+--	salesperson_id;
+
+select 
+	salesperson_id,
+	order_number,
+	order_date,
+	amount,
+	sum(amount) over(partition by salesperson_id order by order_date rows between unbounded preceding and current row) -- unbounded  means all the previous rows
+from 
+	"backup".int_orders;
+
+
+
+
+select 
+	salesperson_id,
+	order_number,
+	order_date,
+	amount,
+	sum(amount) over(order by order_date rows between 2 preceding and current row) -- it sum 2 previous row and current row
+from 
+	"backup".int_orders;
+
+
+select 
+	salesperson_id,
+	order_number,
+	order_date,
+	amount,
+	sum(amount) over(order by order_date rows between 2 preceding and 1 preceding) -- above two rows
+from 
+	"backup".int_orders;
+
+
+select 
+	salesperson_id,
+	order_number,
+	order_date,
+	amount,
+	sum(amount) over(order by order_date rows between 1 preceding and 1 following) -- above, current and below rows
+from 
+	"backup".int_orders;
+
+
+
+select 
+	salesperson_id,
+	order_number,
+	order_date,
+	amount,
+	sum(amount) over(order by order_date rows between unbounded preceding and current row) -- unbounde means sum of all the previous rows 
+from 
+	"backup".int_orders;
+
+
+
+select 
+	salesperson_id,
+	order_number,
+	order_date,
+	amount,
+	sum(amount) over(order by order_date rows between 1 preceding and 1 preceding) -- you can get the output same like LAG() function without using LAG() function
+from 
+	"backup".int_orders;
+
+
+select 
+	salesperson_id,
+	order_number,
+	order_date,
+	amount,
+	sum(amount) over(order by order_date rows between 1 following  and 1 following) -- you can get the output same like Lead() function without using lead() function
+from 
+	"backup".int_orders;
+
+
+
+
+
+--******************************************************************* 23 *******************************************************************************************
+
+
+select * from "backup".emp_sid;
+
+
+select *,
+rank() over(partition by department_id order by salary desc) as Ranks
+,dense_rank() over(partition by department_id order by salary desc) as dens_ranks
+,row_number() over(partition by department_id order by salary desc) as row_numbers
+from "backup".emp_sid
+order by department_id;
+
+
+select * from(
+select *,
+rank() over(partition by department_id order by salary desc,emp_name asc) as rn
+from "backup".emp)a
+where rn = 1
+order by department_id;
+
+
+
+--******************************************************************* 24 *******************************************************************************************
+
+--  how to use group by and rank(window function) together
+-- will understand with a question where we need to find top 5 products in each category by sales
+
+select category,count(distinct product_name) from orders
+group by category;
+
+with sales_value as (
+select category,product_name,sum(sales) as total_sales  from orders
+group by category,product_name)
+select * from (
+select *,
+rank() over(partition by catagory order by total_sales desc) as rn
+from sales_values) a 
+where rn <= 5;
+
+-- another approach 
+
+
+select * from (
+select 
+	category,
+	product_name,
+	sum(sales) as total_sales,
+	rank() over(partition by catagory order by sum(sales) desc) as rn
+from orders
+	group by category,product_name)a
+where rn <=5;
+
+--******************************************************************* 25 *******************************************************************************************
+
+---- pattern matching in sql using wild card 
+
+select * from "backup".emp_sid;
+
+select * from "backup".emp_sid
+where emp_name like '__h%';
+-- % 0 or more characters 
+-- '_' a single character , '__' double underscore 
+-- [] anything within brackets can come
+
+---
+select * from "backup".emp_sid
+where lower(emp_name) like 'r%';
+
+select * from "backup".emp_sid
+where emp_name like '%sh';
+
+select * from "backup".emp_sid
+where emp_name like 'R[^oh]%';
+
+select * from "backup".emp_sid
+where emp_name like 'R[b-l]%';
+
+--******************************************************************* 26 *******************************************************************************************
+
+----- write a sql query to find cites where not sigle order is return
+
+create table "backup".namaste_orders
+(
+order_id int,
+city varchar(10),
+sales int
+)
+
+create table backup.namaste_returns
+(
+order_id int,
+return_reason varchar(20)
+);
+
+insert into backup.namaste_orders
+values(1, 'Mysore' , 100),(2, 'Mysore' , 200),(3, 'Bangalore' , 250),(4, 'Bangalore' , 150)
+,(5, 'Mumbai' , 300),(6, 'Mumbai' , 500),(7, 'Mumbai' , 800)
+;
+insert into backup.namaste_returns values
+(3,'wrong item'),(6,'bad quality'),(7,'wrong item');
+
+
+
+select * from "backup".namaste_orders;
+
+select * from backup.namaste_returns;
+
+---- 1st approach
+select distinct city from "backup".namaste_orders where city not in(
+select distinct o.city from "backup".namaste_orders o
+inner join "backup".namaste_returns r
+on o.order_id = r.order_id);
+
+-- 2nd approach
+
+select o.city,count(r.order_id) as total_returns from "backup".namaste_orders o
+left join "backup".namaste_returns r
+on o.order_id = r.order_id
+group by o.city
+having total_returns = 0;
+
+
+
+
+--******************************************************************* 27 *******************************************************************************************
+-- calculate total hours of emp_id
+
+
+create table backup.clocked_hours(
+empd_id int,
+swipe time,
+flag char
+);
+
+insert into "backup".clocked_hours values
+(11114,'08:30','I'),
+(11114,'10:30','O'),
+(11114,'11:30','I'),
+(11114,'15:30','O'),
+(11115,'09:30','I'),
+(11115,'17:30','O');
+
+
+select * from "backup".clocked_hours;
+
+
+with cte as (
+select * from (
+select *,lead(swipe) over(partition by empd_id order by swipe) as present_hrs
+from "backup".clocked_hours)a
+where flag = 'I')
+select empd_id,sum(datediff(hour,swipe ,present_hrs)) 
+from cte
+group by empd_id;
+
+
+--******************************************************************* 28 *******************************************************************************************
+-- 
+create table "backup".airbnb_searches 
+(
+user_id int,
+date_searched date,
+filter_room_types varchar(200)
+);
+--delete from airbnb_searches;
+insert into "backup".airbnb_searches values
+(1,'2022-01-01','entire home,private room')
+,(2,'2022-01-02','entire home,shared room')
+,(3,'2022-01-02','private room,shared room')
+,(4,'2022-01-03','private room')
+;
+
+
+select * from "backup".airbnb_searches;
+
+select room_types,count(*) from (
+select user_id ,split_part(filter_room_types,',',1) as room_types  from "backup".airbnb_searches
+union all
+select user_id ,split_part(filter_room_types,',',2) as room_types  from "backup".airbnb_searches
+) a
+where room_types != ''
+group by room_types;
+
+
+--******************************************************************* 29 *******************************************************************************************
+-- find out same salary in same department
+
+CREATE TABLE "backup".emp_salary (
+    emp_id INTEGER NOT NULL,
+    name VARCHAR(20) NOT NULL,
+    salary VARCHAR(30),
+    dept_id INTEGER
+)
+DISTSTYLE AUTO
+SORTKEY (emp_id);
+
+INSERT INTO "backup".emp_salary
+(emp_id, name, salary, dept_id)
+VALUES(101, 'sohan', '3000', '11'),
+(102, 'rohan', '4000', '12'),
+(103, 'mohan', '5000', '13'),
+(104, 'cat', '3000', '11'),
+(105, 'suresh', '4000', '12'),
+(109, 'mahesh', '7000', '12'),
+(108, 'kamal', '8000', '11');
+
+
+
+select * from "backup".emp_salary;
+
+-- 1st approach
+
+select emp_id,name,salary, dept_id from "backup".emp_salary
+where (salary, dept_id) in (
+select salary,dept_id from "backup".emp_salary
+group by salary,dept_id
+having count(*) > 1
+);
+
+-- second approach 
+with sal_dep as (
+select dept_id,salary from "backup".emp_salary
+group by dept_id,salary
+having count(1) > 1)
+select es.* from "backup".emp_salary es
+inner join sal_dep sd on es.dept_id = sd.dept_id and es.salary = sd.salary;
+
+-- 3rd approach
+select a.emp_id,a.name,a.salary,a.dept_id from "backup".emp_salary a 
+inner join "backup".emp_salary b 
+on a.dept_id=b.dept_id and a.emp_id<>b.emp_id 
+where a.salary=b.salary
+order by a.dept_id
+
+
+with cte as (
+select d.dept_id,d.department_name,avg_salary from "backup".department d
+left join (
+select department_id,avg(salary) as avg_salary from "backup".emp_sid
+group by department_id) avg_salary 
+on d.dept_id = avg_salary.department_id
+where avg_salary.department_id is not null)
+select * from "backup".emp_sid
+where salary > (select max(avg_salary) from cte);
+
+
+
+
+--******************************************************************* 30 *******************************************************************************************
+
+-- find the total revenue who has bought 'photoshop' but do not sum photoshop revenue in total revenue
+
+Create Table "backup".Customers_s
+           (Customer_id Int,
+           Product Varchar (20),
+           Revenue Int);
+           
+Insert Into "backup".Customers_s Values
+           (123,'Photoshop',50),
+           (123,'Premier Pro',100),
+           (123,'After Effects',50),
+           (234,'Illustration',200),
+           (234,'Premier Pro',100);
+
+-- 1st approach           
+select customer_id,sum(revenue) as total_revenue from "backup".customers_s
+where customer_id in(
+select customer_id 
+from "backup".customers_s
+where product = 'Photoshop')
+and product != 'Photoshop'
+group by customer_id;
+
+--- second approach with exists
+          
+select customer_id,sum(revenue) from "backup".customers_s a
+where exists (select 1 from "backup".customers_s b where product = 'Photoshop' and a.customer_id = b.customer_id)
+and product != 'Photoshop'
+group by customer_id
+order by customer_id;
+
+
+
+
+--******************************************************************* 31 *******************************************************************************************
+
+
+CREATE TABLE "backup".Flights (cust_id INT, flight_id VARCHAR(10), origin VARCHAR(50), destination VARCHAR(50));
+
+-- Insert data into the table
+INSERT INTO "backup".Flights (cust_id, flight_id, origin, destination)
+VALUES (1, 'SG1234', 'Delhi', 'Hyderabad'), (1, 'SG3476', 'Kochi', 'Mangalore'), (1, '69876', 'Hyderabad', 'Kochi'), (2, '68749', 'Mumbai', 'Varanasi'), (2, 'SG5723', 'Varanasi', 'Delhi');
+
+
+select * from "backup".flights;
+
+
+
+
+select f.cust_id ,f.origin
+from "backup".flights f
+left join "backup".flights s
+on f.cust_id = s.cust_id
+and f.origin = s.destination
+where s.cust_id is null;
+
+
+
+--******************************************************************* 32 *******************************************************************************************
+
+
+Create Table "backup".employees
+           (employee_id Int,
+           Name Varchar (20),
+           salary numeric(10,0),
+          dept_id int);
+
+INSERT INTO "backup".employees (employee_id, Name, salary, dept_id)
+VALUES (1, 'Siddharth', 120000, 100),
+ (2, 'yatharth', 30000, 200),
+ (3, 'kaushal', 50000, 300),
+ (4, 'keyur', 20000, 100),
+ (5, 'virat', 50000, 200),
+ (6, 'vishal', 100000, 300),
+ (7, 'shanni', 30000, 100),
+ (8, 'dipesh', 70000, 200),
+ (9, 'pratik', 90000, 300);
+         
+         
+Create Table "backup".department
+           (dept_id Int,
+           department_name Varchar (20)
+         );
+
+drop table "backup".department;
+INSERT INTO "backup".department (dept_id,department_name )    
+values(100,'IT'),
+(200,'Marketing'),
+(300,'QA'),
+(400,'BI');
+        
+        
+        
+select * from "backup".employees e ;
+
+select * from "backup".department ;
+
+
+select name,salary,dept_id from "backup".employees
+where (dept_id,salary) in (
+select d.dept_id,max(e.salary) as salary from "backup".employees e
+right join "backup".department d
+on e.dept_id = d.dept_id
+where e.salary > 80000
+group by d.dept_id)
+order by salary desc;
+
+
+
+
+with cte as (
+select e.employee_id ,e.name,e.dept_id,e.salary,d.department_name from "backup".employees e
+inner join "backup".department d
+on e.dept_id = d.dept_id)
+select * from cte c
+where salary = (select salary from cte c1 where c.salary = c1.salary and c.dept_id != c1.dept_id);
+
+
+select sum(salary),max(salary),min(salary) from "backup".employees;
+
+
+
+
+
+with cte as (
+select *,
+	dense_rank() over(partition by dept_id order by salary desc) as salary_rank 
+from "backup".employees)
+select * from cte c1 where salary in (select salary from cte c2 where c1.salary = c2.salary and c1.dept_id != c2.dept_id);
+
+
+select * from "backup".employees e
+inner join "backup".employees e2
+on e.salary = e2.salary
+and e.dept_id != e2.dept_id;
+
+
+--******************************************************************* 33*******************************************************************************************
+--Q : find out the latest transaction date based on user_id and and how many product purchased on that date
+
+--drop table "backup".transactions;
+
+CREATE TABLE backup.transactions (
+    product_id INT,
+    user_id INT,
+    spend DECIMAL(10, 2),
+    transaction_date DATETIME
+);
+
+INSERT INTO backup.transactions (product_id, user_id, spend, transaction_date)
+VALUES
+(3673, 123, 68.90, '2022-07-08 10:00:00'),
+(9623, 123, 274.10, '2022-07-08 10:00:00'),
+(1467, 115, 19.90, '2022-07-08 10:00:00'),
+(2513, 159, 25.00, '2022-07-08 10:00:00'),
+(1452, 159, 74.50, '2022-07-10 10:00:00'),
+(1452, 123, 74.50, '2022-07-10 10:00:00'),
+(9765, 123, 100.15, '2022-07-11 10:00:00'),
+(6536, 115, 57.00, '2022-07-12 10:00:00'),
+(7384, 159, 15.50, '2022-07-12 10:00:00'),
+(1247, 159, 23.40, '2022-07-12 10:00:00');  
+
+
+
+
+select * from backup.transactions;
+
+with max_transaction_date as (
+select transaction_date,
+		product_id,
+		user_id,
+		rank() over (partition by user_id order by transaction_date desc) as latest_trans_rn
+from "backup".transactions)
+select user_id,
+		transaction_date,
+		count(product_id)
+from max_transaction_date 
+where latest_trans_rn = 1
+group by 
+	user_id,transaction_date
+order by transaction_date desc;
+
+
+
+--******************************************************************* 34*******************************************************************************************
+--Q :- Each order items are mistakenly swapped with the nextOne. Task is to fixed this error, if the last item has an odd order_id then it should remain
+--as the item as it is.
+
+-- drop table "backup".z_orders;
+
+CREATE TABLE "backup".z_orders (
+    order_id INT PRIMARY KEY,
+    item VARCHAR(255) NOT NULL
+);
+
+INSERT INTO "backup".z_orders (order_id, item) VALUES
+(1, 'Chow Mein'),
+(2, 'Pizza'),
+(3, 'Veg Nuggets'),
+(4, 'Paneer Butter Masala'),
+(5, 'Spring Rolls'),
+(6, 'Veg Burger'),
+(7, 'Paneer Tikka');
+
+
+with total_orders as (
+select count(order_id) from "backup".z_orders
+),
+cte as (
+select *,
+	lag(item,1) over(order by order_id) as previous_item,
+	lead(item,1) over(order by order_id) as next_item
+from "backup".z_orders
+order by order_id),
+corrected_items as(
+select *,
+	case when order_id %2 = 0 and previous_item is not null then previous_item --else next_item,
+	 when order_id %2 != 0 and next_item is not null then next_item
+	 --when next_item is null then item
+	 else item
+	 end as swapped_items
+from cte)
+select order_id,item, swapped_items from corrected_items;
+
+
+--******************************************************************* 35 *******************************************************************************************
+
+---
+--drop table "backup".Student_raw;
+
+CREATE TABLE "backup".Student_raw (
+    Student_id VARCHAR(512),
+    Name VARCHAR(512),
+    Fees INT,
+    Section VARCHAR(512)
+);
+
+INSERT INTO "backup".Student_raw (Student_id, Name, Fees, Section) VALUES ('14EAR1', 'Rohan', '2000', 'B');
+INSERT INTO "backup".Student_raw (Student_id, Name, Fees, Section) VALUES ('14EAR2', 'Navdeep', '1500', 'A');
+INSERT INTO "backup".Student_raw (Student_id, Name, Fees, Section) VALUES ('14EAR3', 'Sohan', '2000', 'B');
+INSERT INTO "backup".Student_raw (Student_id, Name, Fees, Section) VALUES ('14EAR4', 'Mohan', '5000', 'C');
+INSERT INTO "backup".Student_raw (Student_id, Name, Fees, Section) VALUES ('14EAR5', 'Swapnil', '4000', 'D');
+INSERT INTO "backup".Student_raw (Student_id, Name, Fees, Section) VALUES ('14EAR6', 'Tapu', '5000', 'C');
+INSERT INTO "backup".Student_raw (Student_id, Name, Fees, Section) VALUES ('14EAR7', 'Goli', '4000', 'D');
+
+select * from "backup".Student_raw;
+
+
+
+
+select * from "backup".student_raw sr
+inner join "backup".student_raw s
+on sr.fees = s.fees
+and sr.section = s.section
+and sr.student_id != s.student_id
+order by sr.fees ,sr.section;
+
+
+-- using row_number
+
+with cte as (
+select *,
+	row_number() over(partition by fees,section order by fees) rn
+from "backup".student_raw)
+select * from "backup".student_raw sr
+inner join cte c
+on sr.section = c.section
+and sr.fees = c.fees
+where rn = 2;
+
+
+--******************************************************************* 35 *******************************************************************************************
+
+--
+--drop table "backup".series;
+
+Create table  "backup".Series (id int, num int);
+
+insert into "backup".Series (id, num) values ('1', '1');
+insert into "backup".Series (id, num) values ('2', '1');
+insert into "backup".Series (id, num) values ('3', '1');
+insert into "backup".Series (id, num) values ('4', '2');
+insert into "backup".Series (id, num) values ('5', '1');
+insert into "backup".Series (id, num) values ('6', '2');
+insert into "backup".Series (id, num) values ('7', '2');
+insert into "backup".Series (id, num) values ('8', '2');
+insert into "backup".Series (id, num) values ('9', '6');
+insert into "backup".Series (id, num) values ('10', '6');
+insert into "backup".Series (id, num) values ('11', '6');
+
+
+select * from "backup".series s1
+inner join "backup".series s2
+on s1.id = s2.id -1
+inner join "backup".series s3
+on s2.id = s3.id -1
+where s1.num = s2.num
+and s2.num = s3.num;
+
+
+
+--******************************************************************* 36 *******************************************************************************************
+
+
+-- Find out top 2 items from the each category
+drop table "backup".ProductSpend;
+
+CREATE TABLE "backup".ProductSpend (
+    category VARCHAR(50),
+    product VARCHAR(100),
+    user_id INT,
+    spend DECIMAL(10, 2)
+);
+
+INSERT INTO "backup".ProductSpend (category, product, user_id, spend) VALUES
+('appliance', 'refrigerator', 165, 26.00),
+('appliance', 'refrigerator', 123, 3.00),
+('appliance', 'washing machine', 123, 19.80),
+('electronics', 'vacuum', 178, 5.00),
+('electronics', 'wireless headset', 156, 7.00),
+('electronics', 'vacuum', 145, 15.00),
+('electronics', 'laptop', 114, 999.99),
+('fashion', 'dress', 117, 49.99),
+('groceries', 'milk', 243, 2.99),
+('groceries', 'bread', 645, 1.99),
+('home', 'furniture', 276, 599.99),
+('home', 'decor', 456, 29.99);
+
+
+
+select * from "backup".ProductSpend;
+
+with cte as (
+select category,
+		product,
+		sum(spend) as total_spend,
+		row_number() over(partition by category order by total_spend desc) as rn
+from 
+	"backup".ProductSpend
+group by category, product)
+select * from cte where rn <=2 
+order by category, product;
+
+
+
+
+--******************************************************************* 37 *******************************************************************************************
+--Q identify the latest transcation done by user_id more than 2 times  and also find 3rd transaction of every users
+
+CREATE TABLE "backup".transactions (
+  user_id INT,
+  spend DECIMAL(10,2),
+  transaction_date DATETIME
+);
+
+INSERT INTO "backup".transactions (user_id, spend, transaction_date)
+VALUES
+  (111, 100.50, '2022-01-08 12:00:00'),
+  (111, 55, '2022-01-10 12:00:00'),
+  (121, 36, '2022-01-18 12:00:00'),
+  (145, 24.99, '2022-01-26 12:00:00'),
+  (111, 89.60, '2022-02-05 12:00:00'); 
+
+
+
+with cte as ( 
+select *,
+	row_number() over(partition by user_id order by transaction_date) as rn
+from "backup".transactions)
+select * from cte
+where rn = 3;
+
+
+select * from "backup".transactions 
+where (user_id,transaction_date) in (
+select user_id,max(transaction_date) from "backup".transactions
+group by user_id
+having count(user_id) > 2);
+
+
+------- 
+--******************************************************************* 38 *******************************************************************************************
+
+--drop table "backup".customer;
+
+CREATE TABLE "backup".customer (
+    id INT,
+    name VARCHAR(50),
+    referee_id INT
+);
+
+
+INSERT INTO "backup".customer (id, name, referee_id) VALUES
+(1, 'Will', NULL),
+(2, 'Jane', NULL),
+(3, 'Alex', 2),
+(4, 'Bill', NULL),
+(5, 'Zack', 1),
+(6, 'Mark', 2);
+
+
+
+select * from "backup".customer;
+
+select name from "backup".customer
+where referee_id != 2
+or referee_id is null;
+
+
+--******************************************************************* 39 *******************************************************************************************
+
+--- find out lower salary and higer salary name
+
+--drop table "backup".emps_tbl;
+
+CREATE TABLE "backup".emps_tbl (emp_name VARCHAR(50), dept_id INT, salary INT);
+
+INSERT INTO "backup".emps_tbl VALUES ('Siva', 1, 30000), ('Ravi', 2, 40000), ('Prasad', 1, 50000), ('Sai', 2, 20000), ('Anna', 2, 10000);
+
+
+
+select distinct dept_id , lower_sal_name,high_sal_name 
+from (
+select *,
+	first_value(emp_name) over(partition by dept_id order by salary rows between unbounded  preceding and current row) as lower_sal_name,
+	first_value (emp_name) over(partition by dept_id order by salary desc rows between unbounded preceding and current row) as high_sal_name
+from "backup".emps_tbl)
+
+
+
+--******************************************************************* 40 *******************************************************************************************
+
+
+
+
+CREATE TABLE "backup".routes (Origin VARCHAR(50), Destination VARCHAR(50));
+
+INSERT INTO  "backup".routes VALUES ('Bangalore', 'Chennai'), ('Chennai', 'Bangalore'), ('Pune', 'Chennai'), ('Delhi', 'Pune');
+
+
+with cte as (
+select *,
+	least(origin,destination) as min_val,
+	greatest(origin,destination) as large_val,
+	row_number() over(partition by min_val,large_val) as rn
+from "backup".routes)
+select * from cte
+where rn = 1
+order by origin;
+
+---- second approach ---- case when statement
+
+select *, row_number() over(partition by 
+case when origin < destination then origin else destination end,
+case when origin > destination then origin else destination end order by origin) rn
+from "backup".routes
+
+
+
+
+
+-- Get the first date of the current month :
+select date_trunc('month',current_date) as first_day_of_month;
+
+-- Get first date of the any given month
+select date_trunc('month','2023-06-30'::date) as  first_day_of_month;
+
+
+select date_trunc('month',current_date) + interval '1 month' - interval '1 day' as last_day_of_month; 
+
+
+
+--******************************************************************* 41 *******************************************************************************************
+
+drop table "backup".sales_data_test;
+
+
+CREATE TABLE "backup".sales_data_test (
+    month varchar(10),
+    category varchar(20),
+    amount numeric
+);
+
+-- Insert data
+INSERT INTO "backup".sales_data_test (month, category, amount) VALUES
+    ('January', 'Electronics', 1500),
+    ('January', 'Clothing', 1200),
+    ('February', 'Electronics', 1800),
+    ('February', 'Clothing', 1300),
+    ('March', 'Electronics', 1600),
+    ('March', 'Clothing', 1100),
+    ('April', 'Electronics', 1700),
+    ('April', 'Clothing', 1400);
+
+
+select * from "backup".sales_data_test;
+
+
+select month,
+	max(case when category = 'Clothing' then amount end) as clothing,
+	max(case when category = 'Electronics' then amount end) as electronics
+from "backup".sales_data_test
+group by month
+order by month;
+
+--------------------
+
+
+with employee as (
+select 1 as id , 100 as salary union all
+select 2 as id ,200 as salary union all
+select 3 as id ,400 as salary union all
+select 4 as id ,600 as salary
+)
+select max(salary) from employee where salary not in (
+select max(salary) from employee);
+
+
+
+with employee as (
+select 1 as id , 100 as salary union all
+select 2 as id ,200 as salary union all
+select 3 as id ,400 as salary union all
+select 4 as id ,600 as salary
+)
+select salary from employee order by salary desc offset 1 limit 1;
+
+------------ Using NVL to handle null value
+with employee as (
+select 1 as id , 100 as salary
+)
+select nvl(max(salary),null) from employee where salary not in (
+select max(salary) from employee);
+
+------ Using Coalesce --------------------
+
+with employee as (
+select 1 as id , 100 as salary
+)
+select coalesce(max(salary),0) from employee where salary not in (
+select max(salary) from employee);
+
+
+
+
+
+--******************************************************************* 42 *******************************************************************************************
+
+CREATE TABLE "backup".product_sales (
+    product_id INT,
+    product_name VARCHAR(50),
+    sales_date DATE,
+    sales INT
+);
+
+
+INSERT INTO "backup".product_sales (product_id, product_name, sales_date, sales)
+VALUES
+(2, 'samsung', '1995-01-01', 11000),
+(1, 'iphone', '2023-02-01', 1300000),
+(2, 'samsung', '2023-02-01', 1120000),
+(3, 'oneplus', '2023-02-01', 1120000),
+(1, 'iphone', '2023-03-01', 1600000),
+(2, 'samsung', '2023-03-01', 1080000),
+(3, 'oneplus', '2023-03-01', 1160000),
+(1, 'iphone', '2006-01-01', 15000),
+(1, 'iphone', '2023-04-01', 1700000),
+(2, 'samsung', '2023-04-01', 1800000),
+(3, 'oneplus', '2023-04-01', 1170000),
+(1, 'iphone', '2023-05-01', 1200000),
+(2, 'samsung', '2023-05-01', 980000),
+(3, 'oneplus', '2023-05-01', 1175000),
+(1, 'iphone', '2023-06-01', 1100000),
+(3, 'oneplus', '2010-01-01', 23000),
+(2, 'samsung', '2023-06-01', 1100000),
+(3, 'oneplus', '2023-06-01', 1200000);
+
+
+
+
+select *,
+	first_value(sales) over(partition by product_id order by sales_date rows between unbounded preceding and unbounded following) as first_month_sales,
+	last_value(sales) over(partition by product_id order by sales_date rows between unbounded preceding and unbounded following ) as last_month_sales
+from "backup".product_sales
+order by
+product_id,sales_date;
+
+
+
+
+
+
+
+CREATE TABLE "backup".employee_attendance (
+    id INT,
+    name VARCHAR(50),
+    attendance_date DATE,
+    attendance_time TIME
+);
+
+
+INSERT INTO "backup".employee_attendance (id, name, attendance_date, attendance_time)
+VALUES
+(1, 'manish', '2023-07-11', '10:20'),
+(1, 'manish', '2023-07-11', '11:20'),
+(2, 'rajesh', '2023-07-11', '11:20'),
+(1, 'manish', '2023-07-11', '11:50'),
+(2, 'rajesh', '2023-07-11', '13:20'),
+(1, 'manish', '2023-07-11', '19:20'),
+(2, 'rajesh', '2023-07-11', '17:20'),
+(1, 'manish', '2023-07-12', '10:32'),
+(1, 'manish', '2023-07-12', '12:20'),
+(3, 'vikash', '2023-07-12', '09:12'),
+(1, 'manish', '2023-07-12', '16:23'),
+(3, 'vikash', '2023-07-12', '18:08');
+
+
+
+with cte as (
+select *,
+	min(attendance_time) over(partition by id,attendance_date order by attendance_time rows between unbounded preceding and current row) as min_time,
+	max(attendance_time) over(partition by id,attendance_date order by attendance_time rows between unbounded preceding and unbounded following) as max_time
+from "backup".employee_attendance)
+,total_hours as (
+select *, (max_time - min_time) as total_in_hours from cte
+order by total_in_hours desc)
+select id,name,attendance_date,total_in_hours from total_hours
+group by id,name,attendance_date,total_in_hours;
+
+
+
+
+
+
+--===========================
+
+
+with table_a as (
+select 1 as id union all
+select 2 as id union all
+select 3 as id union all
+select 4 as id union all
+select 5 as id
+),
+table_b as (
+select 1 as id union all
+select 3 as id union all
+select 5 as id union all
+select 7 as id union all
+select 9 as id
+)
+select coalesce(a.id,b.id) from table_a a
+full join table_b b
+on a.id = b.id
+where a.id is null or b.id is null;
+
+
+
+with table_a as (
+select 1 as id union all
+select 2 as id union all
+select 3 as id union all
+select 4 as id union all
+select 5 as id
+),
+table_b as (
+select 1 as id union all
+select 3 as id union all
+select 5 as id union all
+select 7 as id union all
+select 9 as id
+)
+select coalesce(a.id,b.id) from table_a a
+full join table_b b
+on a.id = b.id
+where b.id is null or 
+a.id is null;
+
+
+
+--******************************************************************* 43 *******************************************************************************************
+--Zomato is planning to offer a premium membership to customers who have placed multiple orders in a single day.
+
+--Your task is to write a SQL to find those customers who have placed multiple orders in a single day at least once, 
+--total order value generated by those customers, and order value generated only by those orders. 
+
+--Display the results in ascending order of total order value.
+--
+drop table "backup".zom_orders;
+
+CREATE TABLE "backup".zom_orders (
+    order_id INT,
+    order_date TIMESTAMP,
+    customer_name VARCHAR(50),
+    order_value INT
+);
+
+
+
+INSERT INTO "backup".zom_orders (order_id, order_date, customer_name, order_value)
+VALUES
+(1, '2023-01-13 12:30:00', 'Rahul', 250),
+(2, '2023-01-13 08:30:00', 'Rahul', 350),
+(3, '2023-01-13 09:00:00', 'Mudit', 230),
+(4, '2023-01-14 08:30:00', 'Rahul', 150),
+(5, '2023-01-14 12:30:00', 'Suresh', 130),
+(6, '2023-01-15 09:30:00', 'Mudit', 300),
+(7, '2023-01-15 12:30:00', 'Mudit', 300),
+(8, '2023-01-15 09:30:00', 'Rahul', 250),
+(9, '2023-01-15 12:35:00', 'Rahul', 500),
+(10, '2023-01-15 12:03:00', 'Suresh', 130);
+
+
+
+with cte as (
+select 
+	customer_name,
+	date(order_date),
+	count(*) as total_orders_count,
+	sum(order_value) as order_value
+from 
+	"backup".zom_orders
+group by 
+	date(order_date),
+	customer_name
+having count(*) >=2)
+, cte2 as (
+select customer_name,
+	sum(order_value) as order_value
+from cte
+group by customer_name)
+select 
+	o.customer_name,
+	sum(o.order_value) as total_order_value,
+	c.order_value
+from  "backup".zom_orders o
+right join cte2 c
+on o.customer_name = c.customer_name
+group by
+	o.customer_name,
+	c.order_value
+order by
+	total_order_value;
+
+
+select * from "backup".zom_orders;
+
+
+
+--******************************************************************* 44 *******************************************************************************************
+
+--- Write a query to find out 3 consecutive failure
+
+CREATE TABLE "backup".job_data (
+ job_id INT,
+ job_start_date DATE,
+ job_status VARCHAR(10)
+);
+
+INSERT INTO "backup".job_data (job_id, job_start_date, job_status) 
+VALUES 
+(1, '2024-03-01', 'success'),
+(1, '2024-03-02', 'success'),
+(1, '2024-03-03', 'failure'),
+(1, '2024-03-04', 'failure'),
+(1, '2024-03-05', 'failure'),
+(1, '2024-03-06', 'failure'),
+(2, '2024-03-01', 'failure'),
+(2, '2024-03-02', 'failure'),
+(2, '2024-03-03', 'failure'),
+(2, '2024-03-04', 'success'),
+(2, '2024-03-05', 'success'),
+(3, '2024-03-01', 'failure'),
+(3, '2024-03-02', 'failure'),
+(3, '2024-03-03', 'success'),
+(3, '2024-03-04', 'failure');
+
+
+
+with cte as (
+select *,
+	lead(job_status,1) over(partition by  job_id order by job_start_date) as first_status,
+	lead(job_status,2) over(partition by job_id order by job_start_date) as  second_status
+from "backup".job_data)
+select * from cte
+where job_status = 'failure'
+and first_status = 'failure'
+and second_status = 'failure';
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
